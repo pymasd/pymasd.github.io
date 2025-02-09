@@ -3,136 +3,178 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hacking Simulation</title>
+  <title>Snake Game</title>
   <style>
     body {
-      background-color: black;
-      color: limegreen;
-      font-family: monospace;
-      padding: 20px;
-      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
       margin: 0;
+      background-color: #000;
+      color: #0f0;
+      font-family: monospace;
     }
-    #terminal {
-      white-space: pre-wrap;
-      font-size: 18px;
-      line-height: 1.5;
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
+    #game-board {
+      border: 2px solid #0f0;
+      background-color: #000;
     }
-    #button {
-      display: none;
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 10px 20px;
-      font-size: 18px;
-      background-color: limegreen;
-      color: black;
-      border: none;
-      cursor: pointer;
-      z-index: 1000;
-    }
-    #video {
-      display: none;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 80%;
-      max-width: 600px;
-      z-index: 1000;
+    #score {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 20px;
     }
   </style>
 </head>
 <body>
-  <div id="terminal"></div>
-  <button id="button">Click the button to unlock your gift 🎁</button>
-  <video id="video" controls>
-    <source src="d6ab32ff90d00bd01557ff81ecf54ab062614585-360p.mp4" type="video/mp4">
-    Your browser does not support the video tag.
-  </video>
-
-  <!-- Audio for beeping sound -->
-  <audio id="beepSound" src="195559__jacobalcook__beeps_and_chirps_attack_44k.wav"></audio>
+  <div>
+    <canvas id="game-board" width="400" height="400"></canvas>
+    <div id="score">Score: 0</div>
+  </div>
 
   <script>
-    const terminal = document.getElementById("terminal");
-    const button = document.getElementById("button");
-    const video = document.getElementById("video");
-    const beepSound = document.getElementById("beepSound");
+    const canvas = document.getElementById("game-board");
+    const ctx = canvas.getContext("2d");
+    const scale = 20;
+    const rows = canvas.height / scale;
+    const columns = canvas.width / scale;
 
-    // Function to generate random meaningless code
-    function generateRandomCode() {
-      const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?/";
-      let randomCode = "";
-      for (let i = 0; i < 40; i++) {
-        randomCode += characters[Math.floor(Math.random() * characters.length)];
-      }
-      return randomCode;
-    }
+    let snake;
+    let food;
+    let score;
 
-    // Array of meaningful and random lines
-    const hackLines = [
-      "Initializing hacking sequence...",
-      "Accessing mainframe...",
-      "Decrypting security protocols...",
-      "Bypassing firewalls...",
-      "Injecting payload...",
-      "Establishing connection...",
-      "Downloading data...",
-      "Compromising target...",
-      "Extracting sensitive information...",
-      "Hack complete!"
-    ];
+    (function setup() {
+      snake = new Snake();
+      food = new Food();
+      score = 0;
 
-    // Add 100+ lines of code (mix of meaningful and random)
-    for (let i = 0; i < 100; i++) {
-      if (i % 10 === 0 && i / 10 < hackLines.length) {
-        hackLines.push(hackLines[i / 10]); // Repeat meaningful lines
-      } else {
-        hackLines.push(generateRandomCode()); // Add random code
-      }
-    }
+      food.pickLocation();
 
-    // Add the birthday message at the end
-    hackLines.push("🎉HAPPY BIRTHDAY DORSA🎉");
+      window.setInterval(() => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        food.draw();
+        snake.update();
+        snake.draw();
 
-    let lineIndex = 0;
+        if (snake.eat(food)) {
+          food.pickLocation();
+          score++;
+          document.getElementById("score").innerText = `Score: ${score}`;
+        }
 
-    function displayLines() {
-      if (lineIndex < hackLines.length) {
-        terminal.textContent += hackLines[lineIndex] + "\n";
-        lineIndex++;
+        snake.checkCollision();
+      }, 100);
+    })();
 
-        // Play beeping sound randomly
-        beepSound.currentTime = 0; // Reset sound to start
-        beepSound.play();
-
-        setTimeout(displayLines, 50); // Speed of lines appearing (adjust as needed)
-      } else {
-        button.style.display = "block";
-      }
-    }
-
-    function scrollTerminal() {
-      terminal.scrollTop = terminal.scrollHeight; // Auto-scroll down
-    }
-
-    button.addEventListener("click", () => {
-      button.style.display = "none";
-      video.style.display = "block";
-      video.play();
+    window.addEventListener("keydown", (event) => {
+      const direction = event.key.replace("Arrow", "");
+      snake.changeDirection(direction);
     });
 
-    // Start the simulation
-    displayLines();
-    setInterval(scrollTerminal, 100); // Auto-scroll every 100ms
+    function Snake() {
+      this.x = 0;
+      this.y = 0;
+      this.xSpeed = scale;
+      this.ySpeed = 0;
+      this.tail = [];
+
+      this.draw = function () {
+        ctx.fillStyle = "#0f0";
+        for (let i = 0; i < this.tail.length; i++) {
+          ctx.fillRect(this.tail[i].x, this.tail[i].y, scale, scale);
+        }
+        ctx.fillRect(this.x, this.y, scale, scale);
+      };
+
+      this.update = function () {
+        for (let i = 0; i < this.tail.length - 1; i++) {
+          this.tail[i] = this.tail[i + 1];
+        }
+
+        if (this.tail.length > 0) {
+          this.tail[this.tail.length - 1] = { x: this.x, y: this.y };
+        }
+
+        this.x += this.xSpeed;
+        this.y += this.ySpeed;
+
+        if (this.x >= canvas.width) this.x = 0;
+        if (this.x < 0) this.x = canvas.width - scale;
+        if (this.y >= canvas.height) this.y = 0;
+        if (this.y < 0) this.y = canvas.height - scale;
+      };
+
+      this.changeDirection = function (direction) {
+        switch (direction) {
+          case "Up":
+            if (this.ySpeed === 0) {
+              this.xSpeed = 0;
+              this.ySpeed = -scale;
+            }
+            break;
+          case "Down":
+            if (this.ySpeed === 0) {
+              this.xSpeed = 0;
+              this.ySpeed = scale;
+            }
+            break;
+          case "Left":
+            if (this.xSpeed === 0) {
+              this.xSpeed = -scale;
+              this.ySpeed = 0;
+            }
+            break;
+          case "Right":
+            if (this.xSpeed === 0) {
+              this.xSpeed = scale;
+              this.ySpeed = 0;
+            }
+            break;
+        }
+      };
+
+      this.eat = function (food) {
+        if (this.x === food.x && this.y === food.y) {
+          this.tail.push({ x: this.x, y: this.y });
+          return true;
+        }
+        return false;
+      };
+
+      this.checkCollision = function () {
+        for (let i = 0; i < this.tail.length; i++) {
+          if (this.x === this.tail[i].x && this.y === this.tail[i].y) {
+            alert(`Game Over! Your score is ${score}.`);
+            this.reset();
+          }
+        }
+      };
+
+      this.reset = function () {
+        this.x = 0;
+        this.y = 0;
+        this.xSpeed = scale;
+        this.ySpeed = 0;
+        this.tail = [];
+        score = 0;
+        document.getElementById("score").innerText = `Score: ${score}`;
+      };
+    }
+
+    function Food() {
+      this.x;
+      this.y;
+
+      this.pickLocation = function () {
+        this.x = Math.floor(Math.random() * columns) * scale;
+        this.y = Math.floor(Math.random() * rows) * scale;
+      };
+
+      this.draw = function () {
+        ctx.fillStyle = "#f00";
+        ctx.fillRect(this.x, this.y, scale, scale);
+      };
+    }
   </script>
 </body>
 </html>
